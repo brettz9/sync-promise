@@ -65,14 +65,13 @@ describe('SyncPromise', function() {
         done();
       });
     });
-    it('cannot call `then` on synchronously resolved promise', function(done) {
-      try {
-        new SyncPromise(function(res, rej) {
-          res(1);
-        }).then(function() { });
-      } catch (err) {
+    it('call `then` on synchronously resolved promise', function(done) {
+      new SyncPromise(function(res, rej) {
+        res(1);
+      }).then(function(n) {
+        assert.equal(n, 1);
         done();
-      }
+      });
     });
   });
   describe('Rejection', function(done) {
@@ -142,17 +141,7 @@ describe('SyncPromise', function() {
         done();
       });
     });
-    it('throws if sync exceptions aren\'t caught', function (done) {
-      try {
-        new SyncPromise(function(res, rej) {
-          throw new Error('err');
-        });
-      } catch (err) {
-        assert.equal(err.message, 'err');
-        done();
-      }
-    });
-    it('throws if async exceptions aren\'t caught', function(done) {
+    it('throws if exceptions aren\'t caught', function(done) {
 
       // Handle uncaught exceptions ourselves
       var originalException = process.listeners('uncaughtException').pop();
@@ -181,7 +170,16 @@ describe('SyncPromise', function() {
         setTimeout(reject, 10);
       });
     });
-    it('if `catch` throws then promise is rejected', function(done) {
+    it('if promise throws, exceptions can be caught', function(done) {
+      new SyncPromise(function(res, rej) {
+        throw new Error('err');
+      }).catch(function (err) {
+        assert.equal(err.message, 'err');
+        done();
+      });
+    });
+
+    it('if catch throws then promise is rejected', function(done) {
       new SyncPromise(function(res, rej) {
         soon(function() { rej(1); });
       }).catch(function(e) {
@@ -222,10 +220,10 @@ describe('SyncPromise', function() {
         done();
       });
     });
-    it('handles plain values in array', function(done) {
+    it('handles plain values and "synchronous" resolving promise in array', function(done) {
       var ps = [
         new SyncPromise(function(res) {
-          soon(function() { res(1); });
+          res(1);
         }),
         2,
         new SyncPromise(function(res) {
@@ -237,17 +235,16 @@ describe('SyncPromise', function() {
         done();
       });
     });
-    it('throws upon all plain values in array', function(done) {
+    it('handles all plain values in array', function(done) {
       var ps = [
         1,
         2,
         3,
       ];
-      try {
-        SyncPromise.all(ps);
-      } catch (err) {
+      SyncPromise.all(ps).then(function (ns) {
+        assert.deepEqual(ns, [1, 2, 3]);
         done();
-      }
+      });
     });
     it('rejects if a promise rejects', function(done) {
       var ps = [
@@ -286,21 +283,20 @@ describe('SyncPromise', function() {
         done();
       });
     });
-    it('throws upon plain values in array (since will make `SyncPromise.race` promise synchronous)', function(done) {
+    it('handles plain values and "synchronous" resolving promise in array', function(done) {
       var ps = [
         new SyncPromise(function(res) {
-          soon(function() { res(1); });
+          res(1);
         }),
         2,
         new SyncPromise(function(res) {
           later(function() { res(3); });
         }),
       ];
-      try {
-        SyncPromise.race(ps);
-      } catch (err) {
+      SyncPromise.race(ps).then(function(ns) {
+        assert.deepEqual(ns, 2);
         done();
-      }
+      });
     });
     it('rejects if a promise rejects', function(done) {
       var ps = [
@@ -321,7 +317,6 @@ describe('SyncPromise', function() {
       });
     });
   });
-  /*
   it('can create resolved promise from value', function(done) {
     SyncPromise.resolve(1).then(function(n) {
       return n+1;
@@ -338,5 +333,4 @@ describe('SyncPromise', function() {
       done();
     });
   });
-  */
 });

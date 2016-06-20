@@ -1,3 +1,4 @@
+var immediate = require('immediate');
 function isPromise(p) {
   return p && typeof p.then === 'function';
 }
@@ -15,10 +16,10 @@ function SyncPromise(fn) {
   self.v = 0; // Value, this will be set to either a resolved value or rejected reason
   self.s = PENDING; // State of the promise
   self.c = [[],[]]; // Callbacks c[0] is fulfillment and c[1] contains rejection callbacks
-  self.a = false; // Has the promise been resolved synchronously
-  var syncResolved = true;
+  var syncResolved = true; // Has the promise been resolved pseudo-synchronously
+  var syncErr = false; // Is there a pseudo-synchronous error that should have priority?
+  var syncRes = false; // Is there a pseudo-synchronous resolution that should have priority?
   function transist(val, state) {
-    self.a = syncResolved;
     self.v = val;
     self.s = state;
     if (state === REJECTED && !self.c[state].length) {
@@ -28,8 +29,12 @@ function SyncPromise(fn) {
     self.c = null; // Release memory.
   }
   function resolve(val) {
-    if (!self.c) {
-      // Already resolved, do nothing.
+    if (syncResolved) {
+      syncRes = true;
+      val = SyncPromise.resolve(val);
+    }
+    if (!self.c || syncErr) {
+      // Already resolved (or will be resolved), do nothing.
     } else if (isPromise(val)) {
       addReject(val.then(resolve), reject);
     } else {
@@ -37,15 +42,24 @@ function SyncPromise(fn) {
     }
   }
   function reject(reason) {
-    if (!self.c) {
-      // Already resolved, do nothing.
+    if (syncResolved) {
+      syncErr = true;
+      reason = SyncPromise.reject(reason);
+    }
+
+    if (!self.c || syncRes) {
+      // Already resolved (or will be resolved), do nothing.
     } else if (isPromise(reason)) {
       addReject(reason.then(reject), reject);
     } else {
       transist(reason, REJECTED);
     }
   }
-  fn(resolve, reject);
+  try {
+    fn(resolve, reject);
+  } catch (err) {
+    reject(err);
+  }
   syncResolved = false;
 }
 
@@ -53,9 +67,6 @@ var prot = SyncPromise.prototype;
 
 prot.then = function(cb, errBack) {
   var self = this;
-  if (self.a) { // Promise has been resolved synchronously
-    throw new Error('Cannot call `then` on synchronously resolved promise');
-  }
   return new SyncPromise(function(resolve, reject) {
     var rej = typeof errBack === 'function' ? errBack : reject;
     function settle() {
@@ -78,9 +89,6 @@ prot.then = function(cb, errBack) {
 
 prot.catch = function(cb) {
   var self = this;
-  if (self.a) { // Promise has been resolved synchronously
-    throw new Error('Cannot call `catch` on synchronously resolved promise');
-  }
   return new SyncPromise(function(resolve, reject) {
     function settle() {
       try {
@@ -107,15 +115,14 @@ SyncPromise.all = function(promises) {
     var newPromises = [];
     promises.forEach(function(p, i) {
       if (isPromise(p)) {
-        hasPromises = true;
         addReject(p.then(function(res) {
           newPromises[i] = res;
           --l || resolve(newPromises);
         }), reject);
       } else {
         newPromises[i] = p;
-        --l || (hasPromises ? resolve(newPromises) : (function () {
-          throw new Error('Must use at least one promise within `SyncPromise.all`');
+        --l || (hasPromises ? resolve(newPromises) : immediate(function () {
+          resolve(promises);
         }()));
       }
     });
@@ -135,8 +142,26 @@ SyncPromise.race = function(promises) {
           resolved = true;
         }), reject);
       } else {
-        throw new Error('Must use promises within `SyncPromise.race`');
+        resolve(p);
+        resolved = true;
+        return true;
       }
+    });
+  });
+};
+
+SyncPromise.resolve = function(val) {
+  return new SyncPromise(function(resolve, reject) {
+    immediate(function () {
+      resolve(val);
+    });
+  });
+};
+
+SyncPromise.reject = function(val) {
+  return new SyncPromise(function(resolve, reject) {
+    immediate(function () {
+      reject(val);
     });
   });
 };
