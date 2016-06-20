@@ -264,6 +264,12 @@ describe('SyncPromise', function() {
         done();
       });
     });
+    it('resolves with an empty array', function(done) {
+      SyncPromise.all([]).then(function(ns) {
+        assert.equal(ns.length, 0);
+        done();
+      });
+    });
   });
   describe('Race', function() {
     it('resolves with first value resolving in array', function(done) {
