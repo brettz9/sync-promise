@@ -1,4 +1,8 @@
 define(function () {
+// Since [immediate](https://github.com/calvinmetcalf/immediate) is
+//   not doing the trick for our WebSQL transactions (at least in Node),
+//   we are forced to make the promises run fully synchronously.
+
 function isPromise(p) {
   return p && typeof p.then === 'function';
 }
@@ -16,24 +20,18 @@ function SyncPromise(fn) {
   self.v = 0; // Value, this will be set to either a resolved value or rejected reason
   self.s = PENDING; // State of the promise
   self.c = [[],[]]; // Callbacks c[0] is fulfillment and c[1] contains rejection callbacks
-  var syncResolved = true; // Has the promise been resolved pseudo-synchronously
-  var syncErr = false; // Is there a pseudo-synchronous error that should have priority?
-  var syncRes = false; // Is there a pseudo-synchronous resolution that should have priority?
   function transist(val, state) {
     self.v = val;
     self.s = state;
-    if (state === REJECTED && !self.c[state].length) {
-      throw val;
-    }
     self.c[state].forEach(function(fn) { fn(val); });
-    self.c = null; // Release memory.
+    // Release memory, but if no handlers have been added, as we
+    //   assume that we will resolve/reject (truly) synchronously
+    //   and thus we avoid flagging checks about whether we've
+    //   already resolved/rejected.
+    if (self.c[state].length) self.c = null;
   }
   function resolve(val) {
-    if (syncResolved) {
-      syncRes = true;
-      val = SyncPromise.resolve(val);
-    }
-    if (!self.c || syncErr) {
+    if (!self.c) {
       // Already resolved (or will be resolved), do nothing.
     } else if (isPromise(val)) {
       addReject(val.then(resolve), reject);
@@ -42,12 +40,7 @@ function SyncPromise(fn) {
     }
   }
   function reject(reason) {
-    if (syncResolved) {
-      syncErr = true;
-      reason = SyncPromise.reject(reason);
-    }
-
-    if (!self.c || syncRes) {
+    if (!self.c) {
       // Already resolved (or will be resolved), do nothing.
     } else if (isPromise(reason)) {
       addReject(reason.then(reject), reject);
@@ -60,7 +53,6 @@ function SyncPromise(fn) {
   } catch (err) {
     reject(err);
   }
-  syncResolved = false;
 }
 
 var prot = SyncPromise.prototype;
@@ -114,10 +106,8 @@ SyncPromise.all = function(promises) {
     var hasPromises = false;
     var newPromises = [];
     if (!l) {
-      immediate(function () {
         resolve(newPromises);
-      });
-      return;
+        return;
     }
     promises.forEach(function(p, i) {
       if (isPromise(p)) {
@@ -127,9 +117,7 @@ SyncPromise.all = function(promises) {
         }), reject);
       } else {
         newPromises[i] = p;
-        --l || (hasPromises ? resolve(newPromises) : immediate(function () {
-          resolve(promises);
-        }()));
+        --l || resolve(promises);
       }
     });
   });
@@ -158,17 +146,13 @@ SyncPromise.race = function(promises) {
 
 SyncPromise.resolve = function(val) {
   return new SyncPromise(function(resolve, reject) {
-    immediate(function () {
-      resolve(val);
-    });
+    resolve(val);
   });
 };
 
 SyncPromise.reject = function(val) {
   return new SyncPromise(function(resolve, reject) {
-    immediate(function () {
-      reject(val);
-    });
+    reject(val);
   });
 };
 

@@ -5,7 +5,7 @@ cat ./wrappers/global-pre.js ./index.js ./wrappers/global-post.js > ./dist/sync-
 cat ./dist/sync-promise-global.js | uglifyjs -c evaluate -m > dist/sync-promise-global.min.js
 
 # Build CommonJS/Node
-cat ./wrappers/commonjs-pre.js ./index.js ./wrappers/commonjs-post.js > ./dist/sync-promise-commonjs.js
+cat ./index.js ./wrappers/commonjs-post.js > ./dist/sync-promise-commonjs.js
 
 # Build AMD/Require.JS
 cat ./wrappers/amd-pre.js ./index.js ./wrappers/amd-post.js > ./dist/sync-promise-amd.js
