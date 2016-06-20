@@ -113,6 +113,12 @@ SyncPromise.all = function(promises) {
     l = promises.length;
     var hasPromises = false;
     var newPromises = [];
+    if (!l) {
+      immediate(function () {
+        resolve(newPromises);
+      });
+      return;
+    }
     promises.forEach(function(p, i) {
       if (isPromise(p)) {
         addReject(p.then(function(res) {
