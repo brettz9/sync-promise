@@ -157,6 +157,10 @@ describe('SyncPromise', function() {
         });
       });
     });
+    /*
+    // We can't test for this in this branch, since we're allowing it
+    //   to run/throw synchronously, and we don't know if catch() will be
+    //   attached.
     it('throws when no onRejected callback has been attached', function (done) {
       // Handle uncaught exceptions ourselves
       var originalException = process.listeners('uncaughtException').pop();
@@ -170,6 +174,7 @@ describe('SyncPromise', function() {
         setTimeout(reject, 10);
       });
     });
+    */
     it('if promise throws, exceptions can be caught', function(done) {
       new SyncPromise(function(res, rej) {
         throw new Error('err');

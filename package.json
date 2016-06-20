@@ -13,9 +13,6 @@
     "type": "git",
     "url": "https://github.com/paldepind/sync-promise.git"
   },
-  "dependencies": {
-    "immediate": "^3.2.2"
-  },
   "devDependencies": {
     "mocha": "^2.4.5"
   },
