@@ -40,19 +40,18 @@ detailed explanation](http://blog.ometer.com/2011/07/24/callbacks-synchronous-an
 Fortunately SyncPromise imposes two restrictions on usage. The first ensures
 that promises are never resolved immediately. The second makes sure
 that no errors get swallowed. Together these restrictions ensure that a
-promise chain will _always_ be run asynchronously or an explicit error will be
-thrown.
+promise chain will _always_ be run asynchronously.
 
 ### Promises that are synchronously resolved can't be chained
 
 Throwing an exception directly in the promise body counts as a synchronous
-resolution, and the error will therefore not be caught.
+resolution and will therefore be resolved instead with `setTimeout(..., 0)`.
 
 ```javascript
 new SyncPromise(function(resolve, reject) {
-  resolve('foo'); // <- Sync resolve
-}).then(function() {
-  // Bad! This is disallowed, error will be thrown
+  resolve('foo'); // <- Will be treated as async resolve
+}).then(function(result) {
+  result === 'foo'; // true
 });
 
 new SyncPromise(function(resolve, reject) {
@@ -145,12 +144,9 @@ getRecord(bookStore, 'Bedrock Nights').then(function(book) {
 ## Differences from ECMAScript promises
 
 * Synchronized resolution and rejection, of course.
-* `SyncPromise.race` only allows promises in its array argument and
-  `SyncPromise.all` must have at least one promise in its array argument.
-  These requirements are to avoid synchronous resolution of the promise
-  these methods are to return.
-* `Promise.resolve` and `Promise.reject` are not implemented – they don't
-  make sense given the above restrictions
+* `Promise.resolve` and `Promise.reject` are implemented with
+  `setTimeout(..., 0)` as are `resolve()` and `reject()` when run
+  synchronously.
 
 ## API
 
@@ -213,8 +209,6 @@ getSomething.then(function(v) {
 
 Return a promise that is resolved when all promises in the array has fulfilled.
 If one rejects, the promise is rejected for the same reason.
-Note that, unlike for ES6 promises, at least one of the supplied values in the
-array must be a promise.
 
 __Example:__
 
@@ -247,17 +241,40 @@ __Example:__
 ```javascript
 var ps = [
   new SyncPromise(function(resolve) {
-    setTimeout(function() {
-      resolve(1);
-    }, 100);
+    resolve(1);
   }),
+  2,
   new SyncPromise(function(resolve) {
     setTimeout(function() {
-      resolve(2);
+      resolve(3);
     }, 9);
   }),
 ];
 SyncPromise.race(ps).then(function(ns) {
   assert.deepEqual(ns, 2);
+});
+```
+
+### SyncPromise.resolve(val)
+
+Equivalent to:
+
+```javascript
+return new SyncPromise(function(resolve, reject) {
+  setTimeout(function () {
+    resolve(val);
+  }, 0);
+});
+```
+
+### SyncPromise.reject(val)
+
+Equivalent to:
+
+```javascript
+return new SyncPromise(function(resolve, reject) {
+  setTimeout(function () {
+    reject(val);
+  }, 0);
 });
 ```
