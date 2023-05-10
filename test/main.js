@@ -1,157 +1,231 @@
-var assert = require('assert');
-var SyncPromise = require('../dist/sync-promise-commonjs');
+/* eslint-disable promise/catch-or-return,
+    promise/always-return, promise/prefer-await-to-callbacks -- Not needed */
+/* eslint-disable promise/no-callback-in-promise,
+    no-empty-function -- Testing */
 
-function soon(f) { setTimeout(f, 1); }
-function later(f) { setTimeout(f, 100); }
+// eslint-disable-next-line no-shadow -- Needed
+import assert from 'assert';
+import SyncPromise from '../index.js';
 
-describe('SyncPromise', function() {
-  it('has `then` and `catch` methods', function() {
-    var p = new SyncPromise(function(res, rej) {
+/**
+ *
+ * @param {() => void} f
+ * @returns {void}
+ */
+function soon (f) { setTimeout(f, 1); }
+/**
+ *
+ * @param {() => void} f
+ * @returns {void}
+ */
+function later (f) { setTimeout(f, 100); }
+
+describe('SyncPromise', function () {
+  it('has `then` and `catch` methods', function () {
+    const p = new SyncPromise(function (res, rej) {
     });
     assert.equal(typeof p.then, 'function');
     assert.equal(typeof p.catch, 'function');
   });
-  describe('Resolution', function() {
-    it('calls `then` callback when resolved', function(done) {
-      var p = new SyncPromise(function(res, rej) {
-        soon(function() { res(10); });
+  describe('Resolution', function () {
+    it('calls `then` callback when resolved', function (done) {
+      const p = new SyncPromise(function (res, rej) {
+        soon(function () { res(10); });
       });
-      p.then(function(v) {
+      p.then(function (v) {
         assert.equal(v, 10);
         done();
       });
     });
-    it('`then` returns a new promise', function() {
-      var p = new SyncPromise(function(res, rej) {});
-      var q = p.then(function(){});
+    it('`then` returns a new promise', function () {
+      const p = new SyncPromise(function (res, rej) {});
+      const q = p.then(function () {});
       assert.equal(typeof q.then, 'function');
       assert.equal(typeof q.catch, 'function');
     });
-    it('`then` can be chained with plain values', function(done) {
-      new SyncPromise(function(res) {
-        soon(function() { res(1); });
-      }).then(function(n) {
-        return n+1;
-      }).then(function(n) {
-        return n+1;
-      }).then(function(n) {
+    it('`then` can be chained with plain values', function (done) {
+      new SyncPromise(function (res) {
+        soon(function () { res(1); });
+      }).then(function (n) {
+        return n + 1;
+      }).then(function (n) {
+        return n + 1;
+      }).then(function (n) {
         assert.equal(n, 3);
         done();
       });
     });
-    it('`then` can be chained with promises', function(done) {
-      new SyncPromise(function(res) {
-        soon(function() { res(1); });
-      }).then(function(n) {
-        return new SyncPromise(function(res) {
-          soon(function() { res(n+1); });
+    it('`then` can be chained with promises', function (done) {
+      new SyncPromise(function (res) {
+        soon(function () { res(1); });
+      }).then(function (n) {
+        return new SyncPromise(function (res) {
+          soon(function () { res(n + 1); });
         });
-      }).then(function(n) {
-        return new SyncPromise(function(res) {
-          soon(function() { res(n + 1); });
+      }).then(function (n) {
+        return new SyncPromise(function (res) {
+          soon(function () { res(n + 1); });
         });
-      }).then(function(n) {
+      }).then(function (n) {
         assert.equal(n, 3);
         done();
       });
     });
-    it('can only be resolved once', function(done) {
-      var p = new SyncPromise(function(res, rej) {
-        soon(function() {
+    it('can only be resolved once', function (done) {
+      const p = new SyncPromise(function (res, rej) {
+        soon(function () {
           res(1); res(2);
         });
       });
-      p.then(function() {
+      p.then(function () {
         done();
       });
     });
-    it('call `then` on synchronously resolved promise', function(done) {
-      new SyncPromise(function(res, rej) {
+    it('call `then` on synchronously resolved promise', function (done) {
+      new SyncPromise(function (res, rej) {
         res(1);
-      }).then(function(n) {
+      }).then(function (n) {
+        assert.equal(n, 1);
+        done();
+      });
+    });
+    it('can skip catch if resolving', function (done) {
+      SyncPromise.resolve(1).catch(function (n) {
+        return n + 1;
+      }).then(function (n) {
         assert.equal(n, 1);
         done();
       });
     });
   });
-  describe('Rejection', function(done) {
-    it('can reject a promise with 2nd argument to `then`', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { rej(1); });
-      }).then(null, function(n) {
-        assert.equal(n, 1);
-        done();
-      });
+  describe('Rejection', function () {
+    it('can accept rejection of a resolved promise', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { rej(SyncPromise.resolve(1)); });
+      }).then(
+        null,
+        // @ts-expect-error Testing
+        function (n) {
+          assert.equal(n, 1);
+          done();
+        }
+      );
     });
-    it('can reject a promise with `catch`', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { rej(1); });
-      }).catch(function(n) {
-        assert.equal(n, 1);
-        done();
-      });
+
+    it('can accept rejection of a rejected promise', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { rej(SyncPromise.reject(1)); });
+      }).then(
+        null,
+        // @ts-expect-error Testing
+        function (n) {
+          assert.equal(n, 1);
+          done();
+        }
+      );
     });
-    it('forwards rejections', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { res(1); });
-      }).then(function(n) {
+
+    it('can reject a promise with 2nd argument to `then`', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { rej(1); });
+      }).then(
+        null,
+        // @ts-expect-error Testing
+        function (n) {
+          assert.equal(n, 1);
+          done();
+        }
+      );
+    });
+    it('can reject a promise with `catch`', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { rej(1); });
+      }).catch(
+        // @ts-expect-error Testing
+        function (n) {
+          assert.equal(n, 1);
+          done();
+        }
+      );
+    });
+    it('forwards rejections', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { res(1); });
+      }).then(function (n) {
+        // eslint-disable-next-line no-throw-literal -- Testing
         throw 'err';
-      }).then(function(n) {
-        return n+1;
-      }).catch(function(e) {
-        assert.equal(e, 'err');
-        done();
-      });
+      }).then(function (n) {
+        return n + 1;
+      }).catch(
+        // @ts-expect-error Testing
+        function (e) {
+          assert.equal(e, 'err');
+          done();
+        }
+      );
     });
-    it('promise returned by `catch` resolves', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { res(1); });
-      }).then(function(n) {
-        return new SyncPromise(function(res) {
-          soon(function() { res(n+1); });
+    it('promise returned by `catch` resolves', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { res(1); });
+      }).then(function (n) {
+        return new SyncPromise(function (res) {
+          soon(function () { res(n + 1); });
         });
-      }).catch(function(e) {
-        return 0;
-      }).then(function(n) {
+      }).catch(
+        // @ts-expect-error Testing
+        function (e) {
+          return 0;
+        }
+      ).then(function (n) {
         assert.equal(n, 2);
         done();
       });
     });
-    it('can only be rejected once', function(done) {
-      var p = new SyncPromise(function(res, rej) {
-        soon(function() {
+    it('can only be rejected once', function (done) {
+      const p = new SyncPromise(function (res, rej) {
+        soon(function () {
           rej(1); rej(2);
         });
       });
-      p.catch(function() {
-        done();
-      });
+      p.catch(
+        // @ts-expect-error Testing
+        function () {
+          done();
+        }
+      );
     });
-    it('exceptions can be caught', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { res(1); });
-      }).then(function(n) {
+    it('exceptions can be caught', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { res(1); });
+      }).then(function (n) {
+        // eslint-disable-next-line no-throw-literal -- Testing
         throw 'err';
-      }).then(function(n) {
-        return n+1;
-      }).catch(function(e) {
-        return 0;
-      }).then(function(n) {
+      }).then(function (n) {
+        return n + 1;
+      }).catch(
+        // @ts-expect-error Testing
+        function (e) {
+          return 0;
+        }
+      ).then(function (n) {
         assert.equal(n, 0);
         done();
       });
     });
-    it('throws if exceptions aren\'t caught', function(done) {
-
+    it('throws if exceptions aren\'t caught', function (done) {
       // Handle uncaught exceptions ourselves
-      var originalException = process.listeners('uncaughtException').pop();
+      // eslint-disable-next-line max-len -- Long
+      const originalException = /** @type {NodeJS.UncaughtExceptionListener} */ (
+        process.listeners('uncaughtException').pop()
+      );
       process.removeListener('uncaughtException', originalException);
-      process.once('uncaughtException', function (error) {
-          process.addListener('uncaughtException', originalException);
-          done();
+      process.once('uncaughtException', function (/* error */) {
+        process.addListener('uncaughtException', originalException);
+        done();
       });
 
-      new SyncPromise(function(res, rej) {
+      // eslint-disable-next-line no-new -- Testing
+      new SyncPromise(function (res, rej) {
         setTimeout(function () {
           throw new Error('err');
         });
@@ -175,171 +249,199 @@ describe('SyncPromise', function() {
       });
     });
     */
-    it('if promise throws, exceptions can be caught', function(done) {
-      new SyncPromise(function(res, rej) {
+    it('if promise throws, exceptions can be caught', function (done) {
+      new SyncPromise(function (res, rej) {
         throw new Error('err');
-      }).catch(function (err) {
-        assert.equal(err.message, 'err');
-        done();
-      });
+      }).catch(
+        // @ts-expect-error Testing
+        function (err) {
+          assert.equal(err.message, 'err');
+          done();
+        }
+      );
     });
 
-    it('if catch throws then promise is rejected', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { rej(1); });
-      }).catch(function(e) {
+    it('if catch throws then promise is rejected', function (done) {
+      new SyncPromise(function (res, rej) {
+        soon(function () { rej(1); });
+      }).catch(function (e) {
+        // eslint-disable-next-line no-throw-literal -- Testing
         throw 0;
-      }).catch(function(n) {
-        assert.equal(n, 0);
-        done();
-      });
+      }).catch(
+        // @ts-expect-error Testing
+        function (n) {
+          assert.equal(n, 0);
+          done();
+        }
+      );
     });
-    it('promise returned from `then` rejects if cb returns rejected promise', function(done) {
-      new SyncPromise(function(res, rej) {
-        soon(function() { res(1); });
-      }).then(function(n) {
-        return new SyncPromise(function(res, rej) {
-          soon(function() { rej(n+1); });
-        });
-      }).catch(function(e) {
-        assert.equal(e, 2);
-        done();
-      });
-    });
+    it(
+      'promise returned from `then` rejects if cb ' +
+      'returns rejected promise',
+      function (done) {
+        new SyncPromise(function (res, rej) {
+          soon(function () { res(1); });
+        }).then(function (n) {
+          return new SyncPromise(function (res, rej) {
+            soon(function () { rej(n + 1); });
+          });
+        }).catch(
+          // @ts-expect-error Testing
+          function (e) {
+            assert.equal(e, 2);
+            done();
+          }
+        );
+      }
+    );
   });
-  describe('All', function() {
-    it('resolves with values in array', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          soon(function() { res(1); });
+  describe('All', function () {
+    it('resolves with values in array', function (done) {
+      const ps = [
+        new SyncPromise(function (res) {
+          soon(function () { res(1); });
         }),
-        new SyncPromise(function(res) {
-          soon(function() { res(2); });
+        new SyncPromise(function (res) {
+          soon(function () { res(2); });
         }),
-        new SyncPromise(function(res) {
-          soon(function() { res(3); });
-        }),
-      ];
-      SyncPromise.all(ps).then(function(ns) {
-        assert.deepEqual(ns, [1, 2, 3]);
-        done();
-      });
-    });
-    it('handles plain values and "synchronous" resolving promise in array', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          res(1);
-        }),
-        2,
-        new SyncPromise(function(res) {
-          soon(function() { res(3); });
-        }),
-      ];
-      SyncPromise.all(ps).then(function(ns) {
-        assert.deepEqual(ns, [1, 2, 3]);
-        done();
-      });
-    });
-    it('handles all plain values in array', function(done) {
-      var ps = [
-        1,
-        2,
-        3,
+        new SyncPromise(function (res) {
+          soon(function () { res(3); });
+        })
       ];
       SyncPromise.all(ps).then(function (ns) {
         assert.deepEqual(ns, [1, 2, 3]);
         done();
       });
     });
-    it('rejects if a promise rejects', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          soon(function() { res(1); });
-        }),
-        new SyncPromise(function(res, rej) {
-          soon(function() { rej(0); });
-        }),
-        new SyncPromise(function(res) {
-          soon(function() { res(3); });
-        }),
+    it(
+      'handles plain values and "synchronous" resolving ' +
+      'promise in array',
+      function (done) {
+        const ps = [
+          new SyncPromise(function (res) {
+            res(1);
+          }),
+          2,
+          new SyncPromise(function (res) {
+            soon(function () { res(3); });
+          })
+        ];
+        SyncPromise.all(ps).then(function (ns) {
+          assert.deepEqual(ns, [1, 2, 3]);
+          done();
+        });
+      }
+    );
+    it('handles all plain values in array', function (done) {
+      const ps = [
+        1,
+        2,
+        3
       ];
-      SyncPromise.all(ps).then(function(ns) {
-      }).catch(function(e) {
-        assert.equal(e, 0);
+      SyncPromise.all(ps).then(function (ns) {
+        assert.deepEqual(ns, [1, 2, 3]);
         done();
       });
     });
-    it('resolves with an empty array', function(done) {
-      SyncPromise.all([]).then(function(ns) {
+    it('rejects if a promise rejects', function (done) {
+      const ps = [
+        new SyncPromise(function (res) {
+          soon(function () { res(1); });
+        }),
+        new SyncPromise(function (res, rej) {
+          soon(function () { rej(0); });
+        }),
+        new SyncPromise(function (res) {
+          soon(function () { res(3); });
+        })
+      ];
+      SyncPromise.all(ps).then(function (ns) {
+      }).catch(
+        // @ts-expect-error Testing
+        function (e) {
+          assert.equal(e, 0);
+          done();
+        }
+      );
+    });
+    it('resolves with an empty array', function (done) {
+      SyncPromise.all([]).then(function (ns) {
         assert.equal(ns.length, 0);
         done();
       });
     });
   });
-  describe('Race', function() {
-    it('resolves with first value resolving in array', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          later(function() { res(1); });
+  describe('Race', function () {
+    it('resolves with first value resolving in array', function (done) {
+      const ps = [
+        new SyncPromise(function (res) {
+          later(function () { res(1); });
         }),
-        new SyncPromise(function(res) {
-          soon(function() { res(2); });
+        new SyncPromise(function (res) {
+          soon(function () { res(2); });
         }),
-        new SyncPromise(function(res) {
-          later(function() { res(3); });
-        }),
+        new SyncPromise(function (res) {
+          later(function () { res(3); });
+        })
       ];
-      SyncPromise.race(ps).then(function(ns) {
+      SyncPromise.race(ps).then(function (ns) {
         assert.deepEqual(ns, 2);
         done();
       });
     });
-    it('handles plain values and "synchronous" resolving promise in array', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          res(1);
+    it(
+      'handles plain values and "synchronous" resolving ' +
+      'promise in array',
+      function (done) {
+        const ps = [
+          new SyncPromise(function (res) {
+            res(1);
+          }),
+          2,
+          new SyncPromise(function (res) {
+            later(function () { res(3); });
+          })
+        ];
+        SyncPromise.race(ps).then(function (ns) {
+          assert.deepEqual(ns, 2);
+          done();
+        });
+      }
+    );
+    it('rejects if a promise rejects', function (done) {
+      const ps = [
+        new SyncPromise(function (res) {
+          later(function () { res(1); });
         }),
-        2,
-        new SyncPromise(function(res) {
-          later(function() { res(3); });
+        new SyncPromise(function (res, rej) {
+          soon(function () { rej(0); });
         }),
+        new SyncPromise(function (res) {
+          later(function () { res(3); });
+        })
       ];
-      SyncPromise.race(ps).then(function(ns) {
-        assert.deepEqual(ns, 2);
-        done();
-      });
-    });
-    it('rejects if a promise rejects', function(done) {
-      var ps = [
-        new SyncPromise(function(res) {
-          later(function() { res(1); });
-        }),
-        new SyncPromise(function(res, rej) {
-          soon(function() { rej(0); });
-        }),
-        new SyncPromise(function(res) {
-          later(function() { res(3); });
-        }),
-      ];
-      SyncPromise.race(ps).then(function(ns) {
-      }).catch(function(e) {
-        assert.equal(e, 0);
-        done();
-      });
+      SyncPromise.race(ps).then(function (ns) {
+      }).catch(
+        // @ts-expect-error Testing
+        function (e) {
+          assert.equal(e, 0);
+          done();
+        }
+      );
     });
   });
-  it('can create resolved promise from value', function(done) {
-    SyncPromise.resolve(1).then(function(n) {
-      return n+1;
-    }).then(function(n) {
+  it('can create resolved promise from value', function (done) {
+    SyncPromise.resolve(1).then(function (n) {
+      return n + 1;
+    }).then(function (n) {
       assert.equal(n, 2);
       done();
     });
   });
-  it('can create rejected promise from value', function(done) {
-    SyncPromise.reject(1).catch(function(n) {
-      return n+1;
-    }).then(function(n) {
+  it('can create rejected promise from value', function (done) {
+    SyncPromise.reject(1).catch(function (n) {
+      return n + 1;
+    }).then(function (n) {
       assert.equal(n, 2);
       done();
     });

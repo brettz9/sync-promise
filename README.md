@@ -80,7 +80,7 @@ This ensures that all rejected promises are handled. Other promise libraries
 (Bluebird for instance) use async mechanisms to ensure this.
 
 ```javascript
-var p = new SyncPromise(function(resolve, reject) {
+const p = new SyncPromise(function(resolve, reject) {
   setTimeout(reject, 10); // Error is thrown – no rejection handlers attached yet
 });
 setTimeout(function() {
@@ -93,19 +93,23 @@ setTimeout(function() {
 ### Node.js/Browserify
 
 ```shell
-npm install sync-promise
+npm install sync-promise-expanded
 ```
 
 Then:
 
-```javascript
-var SyncPromise = require('sync-promise');
+```js
+import SyncPromise from 'sync-promise-expanded';
+
+SyncPromise.all([
+  // ...
+]);
 ```
 
 ### Browser
 
 ```shell
-bower install sync-promise
+npm install sync-promise-expanded
 ```
 
 Then include the global export or the AMD module.
@@ -118,7 +122,7 @@ Then include the global export or the AMD module.
 // transaction when calling `resolve` or `reject`
 function getRecord(IDBStore, key) {
   return new SyncPromise(function(resolve, reject) {
-    var req = IDBStore.get(key);
+    const req = IDBStore.get(key);
     req.onsuccess = function() {
       if (req.result !== undefined) {
         resolve(req.result);
@@ -131,8 +135,8 @@ function getRecord(IDBStore, key) {
 }
 
 // Usage
-var tx = db.transaction('books', 'readonly');
-var bookStore = tx.objectStore('books');
+const tx = db.transaction('books', 'readonly');
+const bookStore = tx.objectStore('books');
 
 getRecord(bookStore, 'Bedrock Nights').then(function(book) {
   // We got the book, and the transaction is still open so we
@@ -158,8 +162,8 @@ resolve and reject the promise.
 __Example:__
 
 ```javascript
-var p = new SyncPromise(function(resolve, reject) {
-  var req = IDBStore.get(key);
+const p = new SyncPromise(function(resolve, reject) {
+  const req = IDBStore.get(key);
   req.onsuccess = function() {
     if (req.result !== undefined) {
       resolve(req.result);
@@ -213,7 +217,7 @@ If one rejects, the promise is rejected for the same reason.
 __Example:__
 
 ```javascript
-var ps = [
+const ps = [
   new SyncPromise(function(resolve) {
     setTimeout(function() {
       resolve(1);
@@ -239,7 +243,7 @@ fulfilled. If one rejects, the promise is rejected for the same reason.
 __Example:__
 
 ```javascript
-var ps = [
+const ps = [
   new SyncPromise(function(resolve) {
     resolve(1);
   }),

@@ -1,30 +1,57 @@
 {
-  "name": "sync-promise",
-  "version": "1.1.0",
+  "name": "sync-promise-expanded",
+  "version": "1.0.0",
   "description": "Ultra compact synchronized promise implementation.",
-  "main": "dist/sync-promise-commonjs.js",
+  "main": "dist/sync-promise-commonjs.cjs",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./index.js",
+      "require": "./dist/sync-promise-commonjs.cjs"
+    }
+  },
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "build.sh && mocha"
+    "tsc": "tsc",
+    "rollup": "rollup -c",
+    "build": "npm run rollup && tsc -p tsconfig-prod.json",
+    "lint": "npm run eslint",
+    "eslint": "eslint --ext=js,md,html .",
+    "mocha": "mocha",
+    "test": "c8 npm run mocha"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/paldepind/sync-promise.git"
+    "url": "https://github.com/brettz9/sync-promise.git"
   },
   "devDependencies": {
-    "mocha": "^2.4.5"
+    "@rollup/plugin-terser": "^0.4.2",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.1.7",
+    "c8": "^7.13.0",
+    "eslint": "^8.40.0",
+    "eslint-config-ash-nazg": "^34.12.0",
+    "mocha": "^10.2.0",
+    "rollup": "^3.22.0"
   },
   "keywords": [
     "indexeddb",
     "promises"
   ],
   "author": "Simon Friis Vindum",
-  "contributors": ["Brett Zamir"],
+  "contributors": [
+    "Brett Zamir"
+  ],
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/paldepind/sync-promise/issues"
+    "url": "https://github.com/brettz9/sync-promise/issues"
   },
-  "homepage": "https://github.com/paldepind/sync-promise"
+  "homepage": "https://github.com/brettz9/sync-promise"
 }
