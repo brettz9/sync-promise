@@ -1,10 +1,9 @@
 /* eslint-disable promise/catch-or-return,
     promise/always-return, promise/prefer-await-to-callbacks -- Not needed */
 /* eslint-disable promise/no-callback-in-promise,
-    no-empty-function -- Testing */
+    no-empty-function, no-unused-vars -- Testing */
 
-// eslint-disable-next-line no-shadow -- Needed
-import assert from 'assert';
+import assert from 'node:assert';
 import SyncPromise from '../index.js';
 
 /**
@@ -12,13 +11,17 @@ import SyncPromise from '../index.js';
  * @param {() => void} f
  * @returns {void}
  */
-function soon (f) { setTimeout(f, 1); }
+function soon (f) {
+  setTimeout(f, 1);
+}
 /**
  *
  * @param {() => void} f
  * @returns {void}
  */
-function later (f) { setTimeout(f, 100); }
+function later (f) {
+  setTimeout(f, 100);
+}
 
 describe('SyncPromise', function () {
   it('has `then` and `catch` methods', function () {
@@ -30,7 +33,9 @@ describe('SyncPromise', function () {
   describe('Resolution', function () {
     it('calls `then` callback when resolved', function (done) {
       const p = new SyncPromise(function (res, rej) {
-        soon(function () { res(10); });
+        soon(function () {
+          res(10);
+        });
       });
       p.then(function (v) {
         assert.equal(v, 10);
@@ -45,7 +50,9 @@ describe('SyncPromise', function () {
     });
     it('`then` can be chained with plain values', function (done) {
       new SyncPromise(function (res) {
-        soon(function () { res(1); });
+        soon(function () {
+          res(1);
+        });
       }).then(function (n) {
         return n + 1;
       }).then(function (n) {
@@ -57,14 +64,20 @@ describe('SyncPromise', function () {
     });
     it('`then` can be chained with promises', function (done) {
       new SyncPromise(function (res) {
-        soon(function () { res(1); });
-      }).then(function (n) {
-        return new SyncPromise(function (res) {
-          soon(function () { res(n + 1); });
+        soon(function () {
+          res(1);
         });
       }).then(function (n) {
         return new SyncPromise(function (res) {
-          soon(function () { res(n + 1); });
+          soon(function () {
+            res(n + 1);
+          });
+        });
+      }).then(function (n) {
+        return new SyncPromise(function (res) {
+          soon(function () {
+            res(n + 1);
+          });
         });
       }).then(function (n) {
         assert.equal(n, 3);
@@ -78,6 +91,8 @@ describe('SyncPromise', function () {
         });
       });
       p.then(function () {
+        // eslint-disable-next-line sonarjs/no-trivial-assertions -- Placeholder
+        assert.ok(true);
         done();
       });
     });
@@ -101,7 +116,9 @@ describe('SyncPromise', function () {
   describe('Rejection', function () {
     it('can accept rejection of a resolved promise', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { rej(SyncPromise.resolve(1)); });
+        soon(function () {
+          rej(SyncPromise.resolve(1));
+        });
       }).then(
         null,
         // @ts-expect-error Testing
@@ -114,7 +131,9 @@ describe('SyncPromise', function () {
 
     it('can accept rejection of a rejected promise', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { rej(SyncPromise.reject(1)); });
+        soon(function () {
+          rej(SyncPromise.reject(1));
+        });
       }).then(
         null,
         // @ts-expect-error Testing
@@ -127,7 +146,9 @@ describe('SyncPromise', function () {
 
     it('can reject a promise with 2nd argument to `then`', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { rej(1); });
+        soon(function () {
+          rej(1);
+        });
       }).then(
         null,
         // @ts-expect-error Testing
@@ -139,9 +160,10 @@ describe('SyncPromise', function () {
     });
     it('can reject a promise with `catch`', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { rej(1); });
+        soon(function () {
+          rej(1);
+        });
       }).catch(
-        // @ts-expect-error Testing
         function (n) {
           assert.equal(n, 1);
           done();
@@ -150,14 +172,15 @@ describe('SyncPromise', function () {
     });
     it('forwards rejections', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { res(1); });
+        soon(function () {
+          res(1);
+        });
       }).then(function (n) {
         // eslint-disable-next-line no-throw-literal -- Testing
         throw 'err';
       }).then(function (n) {
         return n + 1;
       }).catch(
-        // @ts-expect-error Testing
         function (e) {
           assert.equal(e, 'err');
           done();
@@ -166,10 +189,14 @@ describe('SyncPromise', function () {
     });
     it('promise returned by `catch` resolves', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { res(1); });
+        soon(function () {
+          res(1);
+        });
       }).then(function (n) {
         return new SyncPromise(function (res) {
-          soon(function () { res(n + 1); });
+          soon(function () {
+            res(n + 1);
+          });
         });
       }).catch(
         // @ts-expect-error Testing
@@ -188,15 +215,19 @@ describe('SyncPromise', function () {
         });
       });
       p.catch(
-        // @ts-expect-error Testing
         function () {
+          // eslint-disable-next-line @stylistic/max-len -- Long
+          // eslint-disable-next-line sonarjs/no-trivial-assertions -- Placeholder
+          assert.ok(true);
           done();
         }
       );
     });
     it('exceptions can be caught', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { res(1); });
+        soon(function () {
+          res(1);
+        });
       }).then(function (n) {
         // eslint-disable-next-line no-throw-literal -- Testing
         throw 'err';
@@ -214,13 +245,15 @@ describe('SyncPromise', function () {
     });
     it('throws if exceptions aren\'t caught', function (done) {
       // Handle uncaught exceptions ourselves
-      // eslint-disable-next-line max-len -- Long
+      // eslint-disable-next-line @stylistic/max-len -- Long
       const originalException = /** @type {NodeJS.UncaughtExceptionListener} */ (
         process.listeners('uncaughtException').pop()
       );
       process.removeListener('uncaughtException', originalException);
       process.once('uncaughtException', function (/* error */) {
         process.addListener('uncaughtException', originalException);
+        // eslint-disable-next-line sonarjs/no-trivial-assertions -- Placeholder
+        assert.ok(true);
         done();
       });
 
@@ -228,7 +261,7 @@ describe('SyncPromise', function () {
       new SyncPromise(function (res, rej) {
         setTimeout(function () {
           throw new Error('err');
-        });
+        }, 0);
       });
     });
     /*
@@ -253,7 +286,6 @@ describe('SyncPromise', function () {
       new SyncPromise(function (res, rej) {
         throw new Error('err');
       }).catch(
-        // @ts-expect-error Testing
         function (err) {
           assert.equal(err.message, 'err');
           done();
@@ -263,12 +295,13 @@ describe('SyncPromise', function () {
 
     it('if catch throws then promise is rejected', function (done) {
       new SyncPromise(function (res, rej) {
-        soon(function () { rej(1); });
+        soon(function () {
+          rej(1);
+        });
       }).catch(function (e) {
         // eslint-disable-next-line no-throw-literal -- Testing
         throw 0;
       }).catch(
-        // @ts-expect-error Testing
         function (n) {
           assert.equal(n, 0);
           done();
@@ -280,13 +313,16 @@ describe('SyncPromise', function () {
       'returns rejected promise',
       function (done) {
         new SyncPromise(function (res, rej) {
-          soon(function () { res(1); });
+          soon(function () {
+            res(1);
+          });
         }).then(function (n) {
           return new SyncPromise(function (res, rej) {
-            soon(function () { rej(n + 1); });
+            soon(function () {
+              rej(n + 1);
+            });
           });
         }).catch(
-          // @ts-expect-error Testing
           function (e) {
             assert.equal(e, 2);
             done();
@@ -299,13 +335,19 @@ describe('SyncPromise', function () {
     it('resolves with values in array', function (done) {
       const ps = [
         new SyncPromise(function (res) {
-          soon(function () { res(1); });
+          soon(function () {
+            res(1);
+          });
         }),
         new SyncPromise(function (res) {
-          soon(function () { res(2); });
+          soon(function () {
+            res(2);
+          });
         }),
         new SyncPromise(function (res) {
-          soon(function () { res(3); });
+          soon(function () {
+            res(3);
+          });
         })
       ];
       SyncPromise.all(ps).then(function (ns) {
@@ -323,7 +365,9 @@ describe('SyncPromise', function () {
           }),
           2,
           new SyncPromise(function (res) {
-            soon(function () { res(3); });
+            soon(function () {
+              res(3);
+            });
           })
         ];
         SyncPromise.all(ps).then(function (ns) {
@@ -346,18 +390,23 @@ describe('SyncPromise', function () {
     it('rejects if a promise rejects', function (done) {
       const ps = [
         new SyncPromise(function (res) {
-          soon(function () { res(1); });
+          soon(function () {
+            res(1);
+          });
         }),
         new SyncPromise(function (res, rej) {
-          soon(function () { rej(0); });
+          soon(function () {
+            rej(0);
+          });
         }),
         new SyncPromise(function (res) {
-          soon(function () { res(3); });
+          soon(function () {
+            res(3);
+          });
         })
       ];
       SyncPromise.all(ps).then(function (ns) {
       }).catch(
-        // @ts-expect-error Testing
         function (e) {
           assert.equal(e, 0);
           done();
@@ -375,13 +424,19 @@ describe('SyncPromise', function () {
     it('resolves with first value resolving in array', function (done) {
       const ps = [
         new SyncPromise(function (res) {
-          later(function () { res(1); });
+          later(function () {
+            res(1);
+          });
         }),
         new SyncPromise(function (res) {
-          soon(function () { res(2); });
+          soon(function () {
+            res(2);
+          });
         }),
         new SyncPromise(function (res) {
-          later(function () { res(3); });
+          later(function () {
+            res(3);
+          });
         })
       ];
       SyncPromise.race(ps).then(function (ns) {
@@ -399,7 +454,9 @@ describe('SyncPromise', function () {
           }),
           2,
           new SyncPromise(function (res) {
-            later(function () { res(3); });
+            later(function () {
+              res(3);
+            });
           })
         ];
         SyncPromise.race(ps).then(function (ns) {
@@ -411,18 +468,23 @@ describe('SyncPromise', function () {
     it('rejects if a promise rejects', function (done) {
       const ps = [
         new SyncPromise(function (res) {
-          later(function () { res(1); });
+          later(function () {
+            res(1);
+          });
         }),
         new SyncPromise(function (res, rej) {
-          soon(function () { rej(0); });
+          soon(function () {
+            rej(0);
+          });
         }),
         new SyncPromise(function (res) {
-          later(function () { res(3); });
+          later(function () {
+            res(3);
+          });
         })
       ];
       SyncPromise.race(ps).then(function (ns) {
       }).catch(
-        // @ts-expect-error Testing
         function (e) {
           assert.equal(e, 0);
           done();

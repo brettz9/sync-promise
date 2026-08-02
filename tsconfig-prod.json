@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["es2022"],
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "module": "NodeNext",
     "allowJs": true,
     "checkJs": true,
@@ -13,6 +13,6 @@
     "target": "es6",
     "outDir": "dist"
   },
-  "include": ["index.js"],
+  "include": ["index.js", "index.cts"],
   "exclude": ["node_modules"]
 }

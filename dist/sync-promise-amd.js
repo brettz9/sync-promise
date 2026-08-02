@@ -3,16 +3,15 @@ define((function () { 'use strict';
   /* eslint-disable promise/prefer-await-to-callbacks -- Needed for API */
   /* eslint-disable promise/catch-or-return, n/callback-return,
       promise/always-return -- Not needed */
-  /* eslint-disable unicorn/no-this-assignment -- Clarity */
   // Since [immediate](https://github.com/calvinmetcalf/immediate) is
   //   not doing the trick for our WebSQL transactions (at least in Node),
   //   we are forced to make the promises run fully synchronously.
 
-  // Todo: Use ES6 classes
-
+  /* eslint-disable jsdoc/reject-any-type -- Truly arbitrary */
   /**
    * @typedef {any} ArbitraryValue
    */
+  /* eslint-enable jsdoc/reject-any-type -- Truly arbitrary */
 
   /**
    * @callback Resolve
@@ -71,223 +70,236 @@ define((function () { 'use strict';
     REJECTED = 1;
 
   /**
-   * @class
-   * @param {(
-   *   resolve: (value: ArbitraryValue | PromiseLike<ArbitraryValue>) => void,
-   *   reject: (reason?: any) => void
-   * ) => void} fn
+   *
    */
-  function SyncPromise (fn) {
-    const that = this;
-    // Value, this will be set to either a resolved value or rejected reason
-    that.v = 0;
-    // State of the promise
-    that.s = PENDING;
-    // Callbacks c[0] is fulfillment and c[1] contains rejection callbacks
-    /** @type {Callbacks|null} */
-    that.c = [[], []];
+  class SyncPromise {
     /**
-     *
-     * @param {ArbitraryValue} val
-     * @param {0|1} state
-     * @returns {void}
+     * @param {unknown[]|[]} promises
+     * @returns {SyncPromise}
      */
-    function transist (val, state) {
-      that.v = val;
-      that.s = state;
+    static all (promises) {
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve, reject) => {
+          let l = promises.length;
+          /** @type {ArbitraryValue[]} */
+          const newPromises = [];
+          if (!l) {
+            resolve(newPromises);
+            return;
+          }
+          promises.forEach((p, i) => {
+            if (isPromise(/** @type {PromiseLike<ArbitraryValue>} */ (p))) {
+              addReject(/** @type {PromiseLike<ArbitraryValue>} */ (p).then(
+                /** @type {OnFulfilled} */
+                (res) => {
+                  newPromises[i] = res;
+                  --l;
+                  if (!l) {
+                    resolve(newPromises);
+                  }
+                }
+              ), reject);
+            } else {
+              newPromises[i] = p;
+              --l;
+              if (!l) {
+                resolve(promises);
+              }
+            }
+          });
+        }
+      );
+    }
 
-      // console.log('state', state);
-      /** @type {Callbacks} */ (
-        that.c
-      )[state].forEach(function (func) { func(val); });
-      // Release memory, but if no handlers have been added, as we
-      //   assume that we will resolve/reject (truly) synchronously
-      //   and thus we avoid flagging checks about whether we've
-      //   already resolved/rejected.
-      if (/** @type {Callbacks} */(that.c)[state].length) {
-        that.c = null;
+    /**
+     * @param {unknown[]|[]} promises
+     * @returns {SyncPromise}
+     */
+    static race (promises) {
+      let resolved = false;
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve, reject) => {
+          // eslint-disable-next-line @stylistic/max-len -- Long
+          // eslint-disable-next-line unicorn/no-unused-array-method-return -- Shortcuts
+          promises.some((p) => {
+            if (isPromise(/** @type {PromiseLike<ArbitraryValue>} */ (p))) {
+              addReject(/** @type {PromiseLike<ArbitraryValue>} */ (p).then(
+                /** @type {OnFulfilled} */
+                (res) => {
+                  if (resolved) {
+                    return;
+                  }
+                  resolve(res);
+                  resolved = true;
+                }
+              ), reject);
+              return false;
+            }
+            resolve(p);
+            resolved = true;
+            return true;
+          });
+        }
+      );
+    }
+
+    /**
+     * @param {ArbitraryValue} val
+     * @returns {SyncPromise}
+     */
+    static resolve (val) {
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve) => {
+          resolve(val);
+        }
+      );
+    }
+
+    /**
+     * @param {ArbitraryValue} val
+     * @returns {SyncPromise}
+     */
+    static reject (val) {
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve, reject) => {
+          reject(val);
+        }
+      );
+    }
+
+    // Value, this will be set to either a resolved value or rejected reason
+    v = 0;
+
+    /**
+     * @param {(
+     *   resolve: (value: ArbitraryValue | PromiseLike<ArbitraryValue>) => void,
+     *   reject: (reason?: ArbitraryValue) => void
+     * ) => void} fn
+     */
+    constructor (fn) {
+      // State of the promise
+      this.s = PENDING;
+      // Callbacks c[0] is fulfillment and c[1] contains rejection callbacks
+      /** @type {Callbacks|null} */
+      this.c = [[], []];
+      /**
+       *
+       * @param {ArbitraryValue} val
+       * @param {0|1} state
+       * @returns {void}
+       */
+      const transist = (val, state) => {
+        this.v = val;
+        this.s = state;
+
+        // console.log('state', state);
+        /** @type {Callbacks} */ (
+          this.c
+        )[state].forEach((func) => {
+          func(val);
+        });
+        // Release memory, but if no handlers have been added, as we
+        //   assume that we will resolve/reject (truly) synchronously
+        //   and thus we avoid flagging checks about whether we've
+        //   already resolved/rejected.
+        if (/** @type {Callbacks} */(this.c)[state].length) {
+          this.c = null;
+        }
+      };
+
+      /** @type {Resolve} */
+      const resolve = (val) => {
+        if (!this.c) ; else if (isPromise(val)) {
+          addReject(val.then(resolve), reject);
+        } else {
+          transist(val, FULFILLED);
+        }
+      };
+
+      /** @type {Reject} */
+      const reject = (reason) => {
+        if (!this.c) ; else if (isPromise(reason)) {
+          addReject(reason.then(reject), reject);
+        } else {
+          transist(reason, REJECTED);
+        }
+      };
+
+      try {
+        fn(resolve, reject);
+      } catch (err) {
+        reject(err);
       }
     }
 
-    /** @type {Resolve} */
-    function resolve (val) {
-      if (!that.c) ; else if (isPromise(val)) {
-        addReject(val.then(resolve), reject);
-      } else {
-        transist(val, FULFILLED);
-      }
+    /* eslint-disable unicorn/no-thenable -- Promise API */
+    /**
+     * @param {((value: ArbitraryValue) => ArbitraryValue)|null|undefined} [cb]
+     * @param {(reason: ArbitraryValue) => PromiseLike<never>} [errBack]
+     * @returns {SyncPromise}
+     */
+    then (cb, errBack) {
+      /* eslint-enable unicorn/no-thenable -- Promise API */
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve, reject) => {
+          const rej = typeof errBack === 'function' ? errBack : reject;
+
+          /** @type {Settle} */
+          const settle = () => {
+            try {
+              resolve(cb ? cb(this.v) : this.v);
+            } catch (e) {
+              rej(e);
+            }
+          };
+          if (this.s === FULFILLED) {
+            settle();
+          } else if (this.s === REJECTED) {
+            rej(this.v);
+          } else {
+            /** @type {Callbacks} */ (this.c)[FULFILLED].push(settle);
+            /** @type {Callbacks} */ (this.c)[REJECTED].push(rej);
+          }
+        }
+      );
     }
 
-    /** @type {Reject} */
-    function reject (reason) {
-      if (!that.c) ; else if (isPromise(reason)) {
-        addReject(reason.then(reject), reject);
-      } else {
-        transist(reason, REJECTED);
-      }
-    }
-    try {
-      fn(resolve, reject);
-    } catch (err) {
-      reject(err);
+    /**
+     * @param {(reason: ArbitraryValue) => PromiseLike<never>|null|undefined} cb
+     * @returns {SyncPromise}
+     */
+    catch (cb) {
+      return new SyncPromise(
+        /** @type {ResolveReject} */
+        (resolve, reject) => {
+          /**
+           * @returns {void}
+           */
+          const settle = () => {
+            try {
+              resolve(cb(this.v));
+            } catch (e) {
+              reject(e);
+            }
+          };
+
+          if (this.s === REJECTED) {
+            settle();
+          } else if (this.s === FULFILLED) {
+            resolve(this.v);
+          } else {
+            /** @type {Callbacks} */ (this.c)[REJECTED].push(settle);
+            /** @type {Callbacks} */ (this.c)[FULFILLED].push(resolve);
+          }
+        }
+      );
     }
   }
-
-  /* eslint-disable unicorn/no-thenable -- Promise API */
-  /**
-   * @param {((value: ArbitraryValue) => ArbitraryValue)|null|undefined} [cb]
-   * @param {(reason: any) => PromiseLike<never>} [errBack]
-   * @returns {SyncPromise}
-   */
-  SyncPromise.prototype.then = function (cb, errBack) {
-    /* eslint-enable unicorn/no-thenable -- Promise API */
-    const that = this;
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      function (resolve, reject) {
-        const rej = typeof errBack === 'function' ? errBack : reject;
-
-        /** @type {Settle} */
-        function settle () {
-          try {
-            resolve(cb ? cb(that.v) : that.v);
-          } catch (e) {
-            rej(e);
-          }
-        }
-        if (that.s === FULFILLED) {
-          settle();
-        } else if (that.s === REJECTED) {
-          rej(that.v);
-        } else {
-          /** @type {Callbacks} */ (that.c)[FULFILLED].push(settle);
-          /** @type {Callbacks} */ (that.c)[REJECTED].push(rej);
-        }
-      }
-    );
-  };
-
-  /**
-   * @param {(reason: any) => PromiseLike<never>|null|undefined} cb
-   * @returns {SyncPromise}
-   */
-  SyncPromise.prototype.catch = function (cb) {
-    const that = this;
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      function (resolve, reject) {
-        /**
-         * @returns {void}
-         */
-        function settle () {
-          try {
-            resolve(cb(that.v));
-          } catch (e) {
-            reject(e);
-          }
-        }
-
-        if (that.s === REJECTED) {
-          settle();
-        } else if (that.s === FULFILLED) {
-          resolve(that.v);
-        } else {
-          /** @type {Callbacks} */ (that.c)[REJECTED].push(settle);
-          /** @type {Callbacks} */ (that.c)[FULFILLED].push(resolve);
-        }
-      }
-    );
-  };
-
-  /**
-   * @param {unknown[]|[]} promises
-   * @returns {SyncPromise}
-   */
-  SyncPromise.all = function (promises) {
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      (resolve, reject) => {
-        let l = promises.length;
-        /** @type {ArbitraryValue[]} */
-        const newPromises = [];
-        if (!l) {
-          resolve(newPromises);
-          return;
-        }
-        promises.forEach((p, i) => {
-          if (isPromise(/** @type {PromiseLike<any>} */ (p))) {
-            addReject(/** @type {PromiseLike<any>} */ (p).then(
-              /** @type {OnFulfilled} */
-              (res) => {
-                newPromises[i] = res;
-                --l || resolve(newPromises);
-              }
-            ), reject);
-          } else {
-            newPromises[i] = p;
-            --l || resolve(promises);
-          }
-        });
-      }
-    );
-  };
-
-  /**
-   * @param {unknown[]|[]} promises
-   * @returns {SyncPromise}
-   */
-  SyncPromise.race = function (promises) {
-    let resolved = false;
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      (resolve, reject) => {
-        promises.some((p, i) => {
-          if (isPromise(/** @type {PromiseLike<any>} */ (p))) {
-            addReject(/** @type {PromiseLike<any>} */ (p).then(
-              /** @type {OnFulfilled} */
-              (res) => {
-                if (resolved) {
-                  return;
-                }
-                resolve(res);
-                resolved = true;
-              }
-            ), reject);
-            return false;
-          }
-          resolve(p);
-          resolved = true;
-          return true;
-        });
-      }
-    );
-  };
-
-  /**
-   * @param {ArbitraryValue} val
-   * @returns {SyncPromise}
-   */
-  SyncPromise.resolve = function (val) {
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      (resolve, reject) => {
-        resolve(val);
-      }
-    );
-  };
-
-  /**
-   * @param {ArbitraryValue} val
-   * @returns {SyncPromise}
-   */
-  SyncPromise.reject = function (val) {
-    return new SyncPromise(
-      /** @type {ResolveReject} */
-      (resolve, reject) => {
-        reject(val);
-      }
-    );
-  };
 
   return SyncPromise;
 

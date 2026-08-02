@@ -1,21 +1,26 @@
 {
   "name": "sync-promise-expanded",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Ultra compact synchronized promise implementation.",
-  "main": "dist/sync-promise-commonjs.cjs",
   "type": "module",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./index.js",
-      "require": "./dist/sync-promise-commonjs.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/sync-promise-commonjs.cjs"
+      }
     }
   },
   "directories": {
     "test": "test"
   },
   "scripts": {
+    "attw": "attw --pack .",
     "tsc": "tsc",
     "rollup": "rollup -c",
     "build": "npm run rollup && tsc -p tsconfig-prod.json",
@@ -32,14 +37,15 @@
     "url": "https://github.com/brettz9/sync-promise.git"
   },
   "devDependencies": {
-    "@rollup/plugin-terser": "^0.4.2",
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^20.1.7",
-    "c8": "^7.13.0",
-    "eslint": "^8.40.0",
-    "eslint-config-ash-nazg": "^34.12.0",
-    "mocha": "^10.2.0",
-    "rollup": "^3.22.0"
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^26.1.2",
+    "c8": "^12.0.0",
+    "eslint": "^10.8.0",
+    "eslint-config-ash-nazg": "^42.1.1",
+    "mocha": "^11.8.0",
+    "rollup": "^4.62.4"
   },
   "keywords": [
     "indexeddb",

@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "lib": ["es2022"],
-    "moduleResolution": "node",
+    "types": ["mocha", "node"],
+    "moduleResolution": "nodenext",
     "module": "NodeNext",
     "allowJs": true,
     "checkJs": true,
@@ -12,6 +13,6 @@
     "target": "es6",
     "outDir": "dist"
   },
-  "include": ["index.js", "test/**/*.js"],
+  "include": ["index.js", "index.cts", "test/**/*.js"],
   "exclude": ["node_modules"]
 }

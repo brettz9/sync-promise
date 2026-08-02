@@ -48,18 +48,18 @@ Throwing an exception directly in the promise body counts as a synchronous
 resolution and will therefore be resolved instead with `setTimeout(..., 0)`.
 
 ```javascript
-new SyncPromise(function(resolve, reject) {
+new SyncPromise((resolve, reject) => {
   resolve('foo'); // <- Will be treated as async resolve
-}).then(function(result) {
-  result === 'foo'; // true
+}).then((result) => {
+  // result === 'foo'; // true
 });
 
-new SyncPromise(function(resolve, reject) {
+new SyncPromise((resolve, reject) => {
   setTimeout(resolve, 10); // <- Asynchronous resolve
-}).then(function() {
+}).then(() => {
   return 1; // Fine!
-}).then(function(n) {
-  n === 1; // true
+}).then((n) => {
+  // n === 1; // true
 });
 ```
 
@@ -67,10 +67,10 @@ Uncaught errors will be thrown if the rejection occurs within the `SyncPromise`
 function body and there is no `catch`, however:
 
 ```javascript
-new SyncPromise(function(res, rej) {
-  setTimeout(function () {
+const syncProm = new SyncPromise((res, rej) => {
+  setTimeout(() => {
     throw new Error('err');
-  });
+  }, 0);
 });
 ```
 
@@ -80,12 +80,15 @@ This ensures that all rejected promises are handled. Other promise libraries
 (Bluebird for instance) use async mechanisms to ensure this.
 
 ```javascript
-const p = new SyncPromise(function(resolve, reject) {
-  setTimeout(reject, 10); // Error is thrown – no rejection handlers attached yet
+const p = new SyncPromise((resolve, reject) => {
+  // Error is thrown – no rejection handlers attached yet
+  setTimeout(reject, 10);
 });
-setTimeout(function() {
-  p.catch(function() { });
-}), 20;
+setTimeout(() => {
+  p.catch(() => {
+    //
+  });
+}, 20);
 ```
 
 ## Installation
@@ -120,17 +123,17 @@ Then include the global export or the AMD module.
 // This is a wrapper around IDBStore#get.
 // Had it been written using native promises it would have closed the
 // transaction when calling `resolve` or `reject`
-function getRecord(IDBStore, key) {
-  return new SyncPromise(function(resolve, reject) {
+function getRecord (IDBStore, key) {
+  return new SyncPromise((resolve, reject) => {
     const req = IDBStore.get(key);
-    req.onsuccess = function() {
+    req.onsuccess = function () {
       if (req.result !== undefined) {
         resolve(req.result);
       } else {
         reject('KeyNotFoundError');
       }
     };
-    req.onerror = reject;
+    req.addEventListener('error', reject);
   });
 }
 
@@ -138,7 +141,7 @@ function getRecord(IDBStore, key) {
 const tx = db.transaction('books', 'readonly');
 const bookStore = tx.objectStore('books');
 
-getRecord(bookStore, 'Bedrock Nights').then(function(book) {
+getRecord(bookStore, 'Bedrock Nights').then((book) => {
   // We got the book, and the transaction is still open so we
   // can make another request. Had `getRecord` used native promises
   // the transaction whould have been closed by now.
@@ -162,16 +165,16 @@ resolve and reject the promise.
 __Example:__
 
 ```javascript
-const p = new SyncPromise(function(resolve, reject) {
-  const req = IDBStore.get(key);
-  req.onsuccess = function() {
+const p = new SyncPromise((resolve, reject) => {
+  const req = anIDBStore.get(key);
+  req.onsuccess = function () {
     if (req.result !== undefined) {
       resolve(req.result);
     } else {
       reject('KeyNotFoundError');
     }
   };
-  req.onerror = reject;
+  req.addEventListener('error', reject);
 });
 ```
 
@@ -185,9 +188,9 @@ throws an error.
 __Example:__
 
 ```javascript
-getSomething.then(function(v) {
+getSomething.then((v) => {
   return doSomething(v);
-}).then(function(v) {
+}).then((v) => {
   doSomethingElse(v);
 });
 ```
@@ -202,9 +205,9 @@ throws an error.
 __Example:__
 
 ```javascript
-getSomething.then(function(v) {
+getSomething.then((v) => {
   return doSomething(v);
-}).then(function(v) {
+}).then((v) => {
   doSomethingElse(v);
 });
 ```
@@ -218,19 +221,19 @@ __Example:__
 
 ```javascript
 const ps = [
-  new SyncPromise(function(resolve) {
-    setTimeout(function() {
+  new SyncPromise((resolve) => {
+    setTimeout(() => {
       resolve(1);
     }, 100);
   }),
   2,
-  new SyncPromise(function(resolve) {
-    setTimeout(function() {
+  new SyncPromise((resolve) => {
+    setTimeout(() => {
       resolve(3);
     }, 9);
-  }),
+  })
 ];
-SyncPromise.all(ps).then(function(ns) {
+SyncPromise.all(ps).then((ns) => {
   assert.deepEqual(ns, [1, 2, 3]);
 });
 ```
@@ -244,17 +247,17 @@ __Example:__
 
 ```javascript
 const ps = [
-  new SyncPromise(function(resolve) {
+  new SyncPromise((resolve) => {
     resolve(1);
   }),
   2,
-  new SyncPromise(function(resolve) {
-    setTimeout(function() {
+  new SyncPromise((resolve) => {
+    setTimeout(() => {
       resolve(3);
     }, 9);
-  }),
+  })
 ];
-SyncPromise.race(ps).then(function(ns) {
+SyncPromise.race(ps).then((ns) => {
   assert.deepEqual(ns, 2);
 });
 ```
@@ -263,9 +266,10 @@ SyncPromise.race(ps).then(function(ns) {
 
 Equivalent to:
 
+<!-- eslint-skip -->
 ```javascript
-return new SyncPromise(function(resolve, reject) {
-  setTimeout(function () {
+return new SyncPromise((resolve, reject) => {
+  setTimeout(() => {
     resolve(val);
   }, 0);
 });
@@ -275,9 +279,10 @@ return new SyncPromise(function(resolve, reject) {
 
 Equivalent to:
 
+<!-- eslint-skip -->
 ```javascript
-return new SyncPromise(function(resolve, reject) {
-  setTimeout(function () {
+return new SyncPromise((resolve, reject) => {
+  setTimeout(() => {
     reject(val);
   }, 0);
 });

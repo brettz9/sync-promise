@@ -1,5 +1,3 @@
-// eslint-disable-next-line max-len -- Long
-// eslint-disable-next-line import/no-deprecated, import/default, import/namespace, import/no-named-as-default, import/no-named-as-default-member -- Apparent import plugin bug
 import terser from '@rollup/plugin-terser';
 
 export default [{
